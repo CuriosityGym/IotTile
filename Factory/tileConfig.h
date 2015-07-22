@@ -1,8 +1,8 @@
 #define TRUCK_MOTION 1
 #define OLED_MESSAGE 2
+#define MAX_STRING 60
 
 int factoryNode=0;
-#define MAX_STRING 60
 char buffer[MAX_STRING];
 int distributor1Node=1;
 int distributor2Node=2;
