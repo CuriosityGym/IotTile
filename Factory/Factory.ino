@@ -16,7 +16,10 @@ SoftwareSerial debugPort(5, 6); // RX, TX
 ESP esp(&Serial, &debugPort, 4);
 MQTT mqtt(&esp);
 
+char* endpoints[]={"/CG/West/Alert", "/CG/East/Alert"};
+int sizeOfEndpointArray=2;
 
+int alertCounters[]={0,0};
 
 // If using software SPI (the default case):
 #define OLED_CLK   A0
@@ -27,9 +30,9 @@ MQTT mqtt(&esp);
 
 //Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
-
+boolean ESPEnable=true;
 boolean wifiConnected = false;
-
+boolean test=false;
 // nRF24L01(+) radio attached using Getting Started board 
 RF24 radio(9,10);
 
@@ -68,8 +71,7 @@ void wifiCb(void* response)
 void mqttConnected(void* response)
 {
   
-    char* endpoints[]={"/CG/West/Alert", "/CG/East/Alert"};
-    int sizeOfEndpointArray=2;
+   
     debugPort.println("Connected");
     debugPort.print("Subscribing to ");
     debugPort.print(sizeOfEndpointArray);
@@ -80,10 +82,6 @@ void mqttConnected(void* response)
      mqtt.subscribe(endpoints[i]); 
       
     } 
-   // mqtt.subscribe(endpoints[0]);  
-   // mqtt.subscribe(endpoints[1]);  
-   // mqtt.publish(endpoints[0],0); 
-   
     debugPort.print("Subscribed to ");
     debugPort.print(sizeOfEndpointArray);
     debugPort.println(" topics");
@@ -111,26 +109,40 @@ void mqttData(void* response)
 
   debugPort.print("data=");
   String data = res.popString();
-  debugPort.println(data);
+  debugPort.println(data); 
   
-  if(topic=="/CG/West/Alert")
-  {
-    payload = { TRUCK_MOTION, 1 };
-  }
-  else  
-  {
-    payload = { TRUCK_MOTION, 2 };
-  }  
-  RF24NetworkHeader header(/*to node*/ distributor1Node);
-  bool ok = network.write(header,&payload,sizeof(payload));
-  
-  //doAction(topic, data);
+  doAction(topic, data);
+  setWheelsInMotion();
   
 
 }
 void mqttPublished(void* response)
 {
 
+}
+
+
+
+void setWheelsInMotion()
+{
+  
+  for(int i=0;i<sizeOfEndpointArray;i++)
+    {
+     /*debugPort.print("Recieved ");
+     debugPort.print(alertCounters[i], DEC);     
+     debugPort.print(" alerts from ");
+     debugPort.println(endpoints[i]);      
+     */
+     if(alertCounters[i]> factoryTheshold)
+      {
+        sendMessageToNode(distributor1Node,TRUCK_MOTION,1);
+        
+        //sendMessageToNode(distributor2Node,TRUCK_MOTION,1);    
+        
+         
+      } 
+    } 
+  
 }
 
 
@@ -149,8 +161,219 @@ void setup()
 //*******************  MQTT SETUP **********************************
   Serial.begin(19200);
   debugPort.begin(19200);
+  if(ESPEnable)
+  {
+    setupMQTT();
+  } 
+  
+  
+  
+  //OLED
+  
+  //setupDisplay();
+  
+  //NRF Objects
+  SPI.begin();
+  radio.begin();
+  network.begin(/*channel*/ 90, /*node address*/ this_node);
+  //showMessageOnOLED("Factory UP");
+  delay(1000);
+}
 
-  debugPort.println("Bringing up ESP!"); 
+
+
+
+
+void loop()
+{
+  if(test)
+  {
+    sendMessageToNode(distributor1Node,TRUCK_MOTION,1);    
+    test=false;
+  } 
+    
+  // Pump the network regularly
+   
+  network.update();
+  //debugPort.print(network.available());
+  while ( network.available() )
+  {
+    debugPort.println("Yes");
+    // If so, grab it and print it out
+    RF24NetworkHeader header;
+    network.read(header,&payload,sizeof(payload));    
+    processMessages(payload);
+    
+  }
+  if(ESPEnable)
+  {
+    esp.process();
+  } 
+
+  
+  
+}
+
+void sendMessageToNode(int node, int command, int messageNumber)
+{
+        payload = { command, messageNumber }; 
+        RF24NetworkHeader header1(/*to node*/ node);
+        network.write(header1,&payload,sizeof(payload));
+  
+}
+
+void showMessageOnLCD(char * message)
+{
+  
+}
+
+
+
+void processMessages(dataPayload lPayload)
+
+{
+     debugPort.print("Command: ");debugPort.println(lPayload.command, DEC);
+     debugPort.print("Message Number: ");debugPort.println(lPayload.messageNumber, DEC);
+     debugPort.print("Message Text: ");debugPort.println(lPayload.getMessageText());
+     
+     switch(lPayload.messageNumber)
+     {
+        case 0: //Atta Low Alert, not sent by NRF, sent over wifi
+        // Message to Dispatch sent from NRF, Factory Ackowledges it.
+        break;       
+
+        
+        case 2: //Confirmed Dispatch, response from Distributors when asked if factory can dispatch
+          //Reciever :Factory
+          //Case when Distributor confirms space available to stock
+          sendMessageToNode(distributor1Node,OLED_MESSAGE,3);
+          delay(1000);
+          sendMessageToNode(distributor2Node,OLED_MESSAGE,3);
+          
+          delay(3000);
+          showMessageOnLCD(getMessageTextbyIndex(3));// Dispatching..
+          delay(2000);
+          setTruckInMotion();// Happens till Distributor 1 confirms truck arriveds
+          delay(2000);
+          showMessageOnLCD(getMessageTextbyIndex(4));// Truck Left Factory
+          sendMessageToNode(distributor1Node,OLED_MESSAGE,4); //Notify the Distributors of Truck leaving factory
+          
+  
+        break;
+        
+        
+        
+        
+      
+        case 5: //Container Arrived at Distributor 1
+        //Sent by Distributor, accepted at Factory, to confirm distrbutor recieved the stock
+        //sensed by IR sensor
+        
+          //delay(3000);
+          showMessageOnLCD(getMessageTextbyIndex(5));// Container Arrived at D1
+          stopTruck();
+          //sendMessageToNode(distributor1Node,ACTION_COMMAND,6); //Truck has halted, start unloading process
+          // Action happens at Distributor 1, until it sends a message that unloaded successfully.
+          
+        break;
+        
+        
+        
+        case 8: // Unloading at Distributor 1 Complete
+        //Sent by Distributor, accepted at Factory,
+        delay(1000);
+        setTruckInMotion();// Happens till Distributor 2 confirms truck arrives
+        break;
+        
+        case 11: // Unloading at Distributor 1 Complete
+        //Sent by Distributor, accepted at Factory,
+        showMessageOnLCD(getMessageTextbyIndex(9));// Container Arrived at D2
+        stopTruck();// Happens till Distributor 2 confirms truck arrives
+        break;
+        
+        
+        
+        
+      
+       
+       
+     }
+        
+
+}
+
+void stopTruck()
+{
+  
+}
+
+void setTruckInMotion()
+{
+  
+}
+
+void setupDisplay()
+{
+/*
+  display.begin(SSD1306_SWITCHCAPVCC);
+  display.clearDisplay();
+*/
+}
+
+void showMessageOnOLED(char* message)
+{
+  /*
+  Serial.println(message);
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+  display.setCursor(0,0);
+  display.println(message);
+  display.display();
+  */
+ 
+}
+
+
+
+
+
+boolean doAction(String location, String data)
+{
+    data.toLowerCase();
+
+    if(data=="")
+    {
+       data="0"; 
+    }  
+   
+   
+    for(int i=0;i<sizeOfEndpointArray;i++)
+    {
+     //debugPort.println(light+ " : " +endpoints[i]);
+      if(location==endpoints[i])
+      {
+         alertCounters[i]=alertCounters[i]+data.toInt();
+      } 
+      
+
+      
+    } 
+    
+     for(int i=0;i<sizeOfEndpointArray;i++)
+    {
+     debugPort.print("Recieved ");
+     debugPort.print(alertCounters[i], DEC);     
+     debugPort.print(" alerts from ");
+     debugPort.println(endpoints[i]);      
+    } 
+      
+
+}
+
+void setupMQTT()
+{
+   debugPort.println("Bringing up ESP!"); 
   esp.enable();
   delay(500);
   debugPort.println("Resetting up ESP!"); 
@@ -185,83 +408,5 @@ void setup()
   debugPort.println("ARDUINO: system started");
   
   //*********************************************************************************************************
-  
-  
-  
-  //OLED
-  
-  //setupDisplay();
-  
-  //NRF Objects
-  SPI.begin();
-  radio.begin();
-  network.begin(/*channel*/ 90, /*node address*/ this_node);
-  //showMessageOnOLED("Factory UP");
-  delay(1000);
+   
 }
-
-
-
-
-
-void loop()
-{
-  
-  // Pump the network regularly
-  esp.process();
-
-  if(wifiConnected) {
-    
-  network.update();
-
-  // Is there anything ready for us?
-  while ( network.available() )
-  {
-    // If so, grab it and print it out
-    RF24NetworkHeader header;
-    network.read(header,&payload,sizeof(payload));    
-    displayMessages(payload);
-    
-  }
-
-  }
-  
-}
-
-
-
-void displayMessages(dataPayload lPayload)
-
-{
-     debugPort.print("Command: ");debugPort.println(lPayload.command, DEC);
-     debugPort.print("Message Number: ");debugPort.println(lPayload.messageNumber, DEC);
-     debugPort.print("Message Text: ");debugPort.println(lPayload.getMessageText());
-     //Serial.println(lPayload.getMessageText()); 
-     //showMessageOnOLED(lPayload.getMessageText());    
-
-}
-
-void setupDisplay()
-{
-/*
-  display.begin(SSD1306_SWITCHCAPVCC);
-  display.clearDisplay();
-*/
-}
-
-void showMessageOnOLED(char* message)
-{
-  /*
-  Serial.println(message);
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-  display.println(message);
-  display.display();
-  */
- 
-}
-
-
-

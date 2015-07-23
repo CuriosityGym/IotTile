@@ -66,24 +66,22 @@ void loop()
     
   }
   
- // If it's time to send a message, send it!
-  unsigned long now = millis();
-  if ( now - last_sent >= interval  )
-  {
-    last_sent = now;
-
-
-    payload = { TRUCK_MOTION, i };
-    RF24NetworkHeader header(/*to node*/ factoryNode);
-    bool ok = network.write(header,&payload,sizeof(payload));
-    //Serial.println("Sent");
-    i=i+1;
-    if(i>5)
-    {
-      i=0;
-    } 
+ 
    
-  }
+  
+  
+}
+
+void sendMessageToNode(int node, int command, int messageNumber)
+{
+        payload = { command, messageNumber }; 
+        RF24NetworkHeader header1(/*to node*/ node);
+        network.write(header1,&payload,sizeof(payload));
+  
+}
+
+void showMessageOnLCD(char * message)
+{
   
 }
 
@@ -93,8 +91,24 @@ void displayMessages(dataPayload lPayload)
      Serial.print("Command: ");Serial.println(lPayload.command, DEC);
      Serial.print("Message Number: ");Serial.println(lPayload.messageNumber, DEC);
      Serial.print("Message Text: ");Serial.println(lPayload.getMessageText());
-     //Serial.println(lPayload.getMessageText()); 
-     //showMessageOnOLED(lPayload.getMessageText());    
+     
+     switch(lPayload.messageNumber)
+     {
+       case 1:
+       
+       sendMessageToNode(factoryNode,OLED_MESSAGE,2);
+       break;
+       
+       case 4:
+       delay(5000);
+       sendMessageToNode(factoryNode,OLED_MESSAGE,5);
+       delay(3000);
+       sendMessageToNode(factoryNode,OLED_MESSAGE,8);        
+       break;
+       
+       
+     }
+     
 
 }
 
