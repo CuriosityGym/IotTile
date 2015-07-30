@@ -1,16 +1,17 @@
 #include <SoftwareSerial.h>
 #include <espduino.h>
 #include <mqtt.h>
+#include "U8glib.h"
 
 
-#include <avr/pgmspace.h>
 #include "tileConfig.h"
 #include <RF24Network.h>
 #include <RF24.h>
 #include <SPI.h>
 
-//#include <Adafruit_GFX.h>
-//#include <Adafruit_SSD1306.h>
+
+
+
 
 SoftwareSerial debugPort(5, 6); // RX, TX
 ESP esp(&Serial, &debugPort, 4);
@@ -21,18 +22,16 @@ int sizeOfEndpointArray=2;
 
 int alertCounters[]={0,0};
 
-// If using software SPI (the default case):
 #define OLED_CLK   A0
 #define OLED_MOSI  A1
 #define OLED_RESET A2
 #define OLED_DC    A3
 #define OLED_CS    A4
+U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(OLED_CLK, OLED_MOSI, OLED_CS, OLED_DC, OLED_RESET);	// SW SPI Com: SCK = A0, MOSI = 11, CS = 10, A0 = 9
 
-//Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
-
-boolean ESPEnable=true;
+boolean ESPEnable=false;
 boolean wifiConnected = false;
-boolean test=false;
+boolean test=true;
 // nRF24L01(+) radio attached using Getting Started board 
 RF24 radio(9,10);
 
@@ -112,7 +111,7 @@ void mqttData(void* response)
   debugPort.println(data); 
   
   doAction(topic, data);
-  setWheelsInMotion();
+  sendActionAlerts();
   
 
 }
@@ -123,24 +122,63 @@ void mqttPublished(void* response)
 
 
 
-void setWheelsInMotion()
+void sendActionAlerts()
 {
   
   for(int i=0;i<sizeOfEndpointArray;i++)
     {
-     /*debugPort.print("Recieved ");
-     debugPort.print(alertCounters[i], DEC);     
-     debugPort.print(" alerts from ");
-     debugPort.println(endpoints[i]);      
-     */
-     if(alertCounters[i]> factoryTheshold)
-      {
-        sendMessageToNode(distributor1Node,TRUCK_MOTION,1);
+     delay(1000);//wait for a few moments before sending consecutive sends
+     if(i==0) //West Alert
+     {
+       
+        if(alertCounters[i]> factoryTheshold)
+        {
+            sendMessageToNode(factoryNode,TRUCK_MOTION,1); 
+                     
         
-        //sendMessageToNode(distributor2Node,TRUCK_MOTION,1);    
+        } 
         
-         
-      } 
+        else if(alertCounters[i]> distributorThreshold)
+        {
+            sendMessageToNode(distributorWest,TRUCK_MOTION,1);        
+            
+        } 
+     
+        else if(alertCounters[i]> retailerThreshold)
+        {
+            sendMessageToNode(retailerWest,TRUCK_MOTION,1);        
+            
+        }      
+      
+      
+     }
+     
+      if(i==1) //East Alert
+     {
+       
+        if(alertCounters[i]> factoryTheshold)
+        {
+            sendMessageToNode(factoryNode,TRUCK_MOTION,1); 
+                  
+        } 
+        
+        else if(alertCounters[i]> distributorThreshold)
+        {
+            sendMessageToNode(distributorEast,TRUCK_MOTION,1); 
+            
+        } 
+     
+        else if(alertCounters[i]> retailerThreshold)
+        {
+            sendMessageToNode(retailerEast,TRUCK_MOTION,1);        
+            
+        }      
+      
+      
+     }
+     
+     
+     
     } 
   
 }
@@ -169,6 +207,7 @@ void setup()
   
   
   //OLED
+  u8g.setFont(u8g_font_unifont);  // select font
   
   //setupDisplay();
   
@@ -188,7 +227,7 @@ void loop()
 {
   if(test)
   {
-    sendMessageToNode(distributor1Node,TRUCK_MOTION,1);    
+    sendMessageToNode(distributorWest,TRUCK_MOTION,1);    
     test=false;
   } 
     
@@ -209,9 +248,20 @@ void loop()
   {
     esp.process();
   } 
+  
+  u8g.firstPage();
+  do {
+    draw();
+  } while( u8g.nextPage() );
 
   
   
+}
+
+void draw()
+{
+     // u8g.drawBitmapP( 0, 14, 16, 52, CGLOGO); //Just logo
+      u8g.drawStr(0, 28, "Rupin");
 }
 
 void sendMessageToNode(int node, int command, int messageNumber)
@@ -234,7 +284,7 @@ void processMessages(dataPayload lPayload)
 {
      debugPort.print("Command: ");debugPort.println(lPayload.command, DEC);
      debugPort.print("Message Number: ");debugPort.println(lPayload.messageNumber, DEC);
-     debugPort.print("Message Text: ");debugPort.println(lPayload.getMessageText());
+     debugPort.print("Message Text: ");debugPort.println(lPayload.getMessageTextByIndex(lPayload.messageNumber));
      
      switch(lPayload.messageNumber)
      {
@@ -246,17 +296,17 @@ void processMessages(dataPayload lPayload)
         case 2: //Confirmed Dispatch, response from Distributors when asked if factory can dispatch
           //Reciever :Factory
           //Case when Distributor confirms space available to stock
-          sendMessageToNode(distributor1Node,OLED_MESSAGE,3);
+          sendMessageToNode(distributorWest,OLED_MESSAGE,3);
           delay(1000);
-          sendMessageToNode(distributor2Node,OLED_MESSAGE,3);
+          sendMessageToNode(distributorEast,OLED_MESSAGE,3);
           
           delay(3000);
-          showMessageOnLCD(getMessageTextbyIndex(3));// Dispatching..
+          showMessageOnLCD(lPayload.getMessageTextByIndex(3));// Dispatching..
           delay(2000);
           setTruckInMotion();// Happens till Distributor 1 confirms truck arriveds
           delay(2000);
-          showMessageOnLCD(getMessageTextbyIndex(4));// Truck Left Factory
-          sendMessageToNode(distributor1Node,OLED_MESSAGE,4); //Notify the Distributors of Truck leaving factory
+          showMessageOnLCD(lPayload.getMessageTextByIndex(4));// Truck Left Factory
+          sendMessageToNode(distributorWest,OLED_MESSAGE,4); //Notify the Distributors of Truck leaving factory
           
   
         break;
@@ -270,9 +320,9 @@ void processMessages(dataPayload lPayload)
         //sensed by IR sensor
         
           //delay(3000);
-          showMessageOnLCD(getMessageTextbyIndex(5));// Container Arrived at D1
+          showMessageOnLCD(lPayload.getMessageTextByIndex(5));// Container Arrived at D1
           stopTruck();
-          //sendMessageToNode(distributor1Node,ACTION_COMMAND,6); //Truck has halted, start unloading process
+          //sendMessageToNode(distributorWest,ACTION_COMMAND,6); //Truck has halted, start unloading process
           // Action happens at Distributor 1, until it sends a message that unloaded successfully.
           
         break;
@@ -287,7 +337,7 @@ void processMessages(dataPayload lPayload)
         
         case 11: // Unloading at Distributor 1 Complete
         //Sent by Distributor, accepted at Factory,
-        showMessageOnLCD(getMessageTextbyIndex(9));// Container Arrived at D2
+        showMessageOnLCD(lPayload.getMessageTextByIndex(9));// Container Arrived at D2
         stopTruck();// Happens till Distributor 2 confirms truck arrives
         break;
         

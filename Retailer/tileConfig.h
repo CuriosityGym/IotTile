@@ -2,18 +2,22 @@
 #define OLED_MESSAGE 2
 #define ACTION_COMMAND 3;
 #define MAX_STRING 60
+char buffer[MAX_STRING];
+
 
 int factoryNode=0;
-char buffer[MAX_STRING];
-int distributor1Node=1;
-int distributor2Node=2;
+int distributorWest=1;
+int distributorEast=2;
+int retailerWest=3;
+int retailerEast=4;
 
-int retailer1Node=3;
-int retailer2Node=4;
-
-
+int retailerThreshold=1;
+int distributorThreshold=10;
 int factoryTheshold=100;
-const char str0[] PROGMEM = "Atta Low Alert";
+
+
+
+const char str0[] PROGMEM = "Grains Low Alert";
 const char str1[] PROGMEM = "Dispatch?";
 const char str2[] PROGMEM = "Confirmed Dispatch";
 const char str3[] PROGMEM = "Dispatching..";
@@ -35,7 +39,7 @@ const char str12[] PROGMEM = "Container Arrived at Distributor 2";
 
 
 
-PROGMEM const char* const tileMessages[]={str0,str1,str2,str3,str4,str5,str6,str7, str8, str9, str10};
+PROGMEM const char* const tileMessages[]={str0,str1,str2,str3,str4,str5,str6,str7, str8, str9, str10, str11, str12};
 
 struct dataPayload
 {
