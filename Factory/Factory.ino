@@ -19,7 +19,7 @@ MQTT mqtt(&esp);
 
 char* endpoints[]={"/CG/West/Alert", "/CG/East/Alert"};
 int sizeOfEndpointArray=2;
-
+String splitString[4];
 int alertCounters[]={0,0};
 
 #define OLED_CLK   A0
@@ -70,21 +70,17 @@ void wifiCb(void* response)
 void mqttConnected(void* response)
 {
   
-   
-    debugPort.println("Connected");
-    debugPort.print("Subscribing to ");
-    debugPort.print(sizeOfEndpointArray);
-    debugPort.println(" topics");
+   /*
+    
     for(int i=0;i<sizeOfEndpointArray;i++)
     {
      
      mqtt.subscribe(endpoints[i]); 
       
     } 
-    debugPort.print("Subscribed to ");
-    debugPort.print(sizeOfEndpointArray);
-    debugPort.println(" topics");
-  
+   */
+  mqtt.subscribe("/CG/West/Alert");
+  mqtt.subscribe("/CG/East/Alert");
 
   
     
@@ -92,10 +88,6 @@ void mqttConnected(void* response)
 
 }
 
-void mqttDisconnected(void* response)
-{
-
-}
 
 
 void mqttData(void* response)
@@ -115,11 +107,6 @@ void mqttData(void* response)
   
 
 }
-void mqttPublished(void* response)
-{
-
-}
-
 
 
 void sendActionAlerts()
@@ -194,7 +181,7 @@ void sendActionAlerts()
 void setup()
 {
   
-  
+
   
 //*******************  MQTT SETUP **********************************
   Serial.begin(19200);
@@ -215,8 +202,8 @@ void setup()
   SPI.begin();
   radio.begin();
   network.begin(/*channel*/ 90, /*node address*/ this_node);
-  //showMessageOnOLED("Factory UP");
-  delay(1000);
+ //showMessageOnLCD("Factory UP");
+ delay(2000);
 }
 
 
@@ -227,21 +214,23 @@ void loop()
 {
   if(test)
   {
-    sendMessageToNode(distributorWest,TRUCK_MOTION,1);    
+    showMessageOnLCD(getMessageTextByIndex(1));// Dispatching..
+    delay(3000);
+    sendMessageToNode(distributorWest,TRUCK_MOTION,1); 
     test=false;
   } 
     
-  // Pump the network regularly
+
    
   network.update();
-  //debugPort.print(network.available());
+
   while ( network.available() )
   {
-    debugPort.println("Yes");
+
     // If so, grab it and print it out
     RF24NetworkHeader header;
     network.read(header,&payload,sizeof(payload));    
-    processMessages(payload);
+    processMessages(payload, header);
     
   }
   if(ESPEnable)
@@ -249,20 +238,15 @@ void loop()
     esp.process();
   } 
   
-  u8g.firstPage();
-  do {
-    draw();
-  } while( u8g.nextPage() );
+  
+  
+ // showMessageOnLCD("A|BC|DEF");
+
 
   
   
 }
 
-void draw()
-{
-     // u8g.drawBitmapP( 0, 14, 16, 52, CGLOGO); //Just logo
-      u8g.drawStr(0, 28, "Rupin");
-}
 
 void sendMessageToNode(int node, int command, int messageNumber)
 {
@@ -272,22 +256,87 @@ void sendMessageToNode(int node, int command, int messageNumber)
   
 }
 
+
+
 void showMessageOnLCD(char * message)
 {
+   /*int index;  
+   int prevIndex=-1;
+   String sMessage=String (message);
+   index=sMessage.indexOf("|");
+  // Serial.println(index);
+   
+   int counter=0;
+   
+     while(index>0)
+     {
+
+       splitString[counter]= sMessage.substring(prevIndex+1,index);
+       prevIndex=index;
+       index=sMessage.indexOf("|", prevIndex+1);
+       counter=counter+1;
+       if(index==-1)
+       {
+         splitString[counter]=sMessage.substring(prevIndex+1,sMessage.length());
   
+       } 
+     } 
+     
+*/
+ 
+  //  draw(); 
+  
+  u8g.firstPage();  
+    do {
+        u8g.drawStr(0, 24, message);
+       // u8g.drawStr(0, 40, splitString[1].c_str());
+        //u8g.drawStr(0, 56, splitString[2].c_str());
+        //u8g.drawStr(0, 72, splitString[3].c_str());
+        //delay(10000);
+    } while( u8g.nextPage() );
+  
+
+}  
+   
+   
+void draw()
+{
+  
+     u8g.firstPage();  
+    do {
+        u8g.drawStr(0, 24, splitString[0].c_str());
+        u8g.drawStr(0, 40, splitString[1].c_str());
+        u8g.drawStr(0, 56, splitString[2].c_str());
+        u8g.drawStr(0, 72, splitString[3].c_str());
+        //delay(10000);
+    } while( u8g.nextPage() );
+    
+  
+    
+       
 }
+   
 
 
 
-void processMessages(dataPayload lPayload)
+
+
+
+
+
+
+void processMessages(dataPayload lPayload, RF24NetworkHeader header)
 
 {
-     debugPort.print("Command: ");debugPort.println(lPayload.command, DEC);
+     /*debugPort.print("Command: ");debugPort.println(lPayload.command, DEC);
      debugPort.print("Message Number: ");debugPort.println(lPayload.messageNumber, DEC);
      debugPort.print("Message Text: ");debugPort.println(lPayload.getMessageTextByIndex(lPayload.messageNumber));
-     
-     switch(lPayload.messageNumber)
+     debugPort.print("From Node: ");debugPort.println(header.from_node);*/
+     if(header.from_node==distributorWest)
      {
+       switch(lPayload.messageNumber)
+       {
+       
         case 0: //Atta Low Alert, not sent by NRF, sent over wifi
         // Message to Dispatch sent from NRF, Factory Ackowledges it.
         break;       
@@ -296,10 +345,7 @@ void processMessages(dataPayload lPayload)
         case 2: //Confirmed Dispatch, response from Distributors when asked if factory can dispatch
           //Reciever :Factory
           //Case when Distributor confirms space available to stock
-          sendMessageToNode(distributorWest,OLED_MESSAGE,3);
-          delay(1000);
-          sendMessageToNode(distributorEast,OLED_MESSAGE,3);
-          
+          sendMessageToNode(distributorWest,OLED_MESSAGE,3);         
           delay(3000);
           showMessageOnLCD(lPayload.getMessageTextByIndex(3));// Dispatching..
           delay(2000);
@@ -323,23 +369,19 @@ void processMessages(dataPayload lPayload)
           showMessageOnLCD(lPayload.getMessageTextByIndex(5));// Container Arrived at D1
           stopTruck();
           //sendMessageToNode(distributorWest,ACTION_COMMAND,6); //Truck has halted, start unloading process
-          // Action happens at Distributor 1, until it sends a message that unloaded successfully.
-          
+          // Action happens at Distributor 1, until it sends a message that unloaded successfully.          
         break;
         
         
         
         case 8: // Unloading at Distributor 1 Complete
-        //Sent by Distributor, accepted at Factory,
-        delay(1000);
-        setTruckInMotion();// Happens till Distributor 2 confirms truck arrives
+        //Sent by Distributor 1, accepted at Factory,        
+        delay(3000);  
+        sendMessageToNode(distributorEast,OLED_MESSAGE,1); //Notify the Distributors of Truck leaving factory      
+        //setTruckInMotion();// Happens till Distributor 2 confirms truck arrives
         break;
         
-        case 11: // Unloading at Distributor 1 Complete
-        //Sent by Distributor, accepted at Factory,
-        showMessageOnLCD(lPayload.getMessageTextByIndex(9));// Container Arrived at D2
-        stopTruck();// Happens till Distributor 2 confirms truck arrives
-        break;
+       }
         
         
         
@@ -348,7 +390,63 @@ void processMessages(dataPayload lPayload)
        
        
      }
+     
+     if(header.from_node==distributorEast)
+     {
+       
+       switch(lPayload.messageNumber)
+       {
+     
+         case 2: //Confirmed Dispatch, response from Distributors when asked if factory can dispatch
+          //Reciever :Factory
+          //Case when Distributor confirms space available to stock
+          delay(1000);
+          showMessageOnLCD(lPayload.getMessageTextByIndex(3));// Dispatching..
+          delay(3000);
+          sendMessageToNode(distributorEast,OLED_MESSAGE,3);         
+
+          
+          delay(2000);
+          setTruckInMotion();// Happens till Distributor 2 confirms truck arriveds
+          delay(2000);
+          showMessageOnLCD(lPayload.getMessageTextByIndex(4));// Truck Left Factory
+          delay(3000);
+          sendMessageToNode(distributorEast,OLED_MESSAGE,4); //Notify the Distributors of Truck leaving factory
+          
+  
+        break;
         
+        
+        
+        
+       case 5: //Container Arrived at Distributor 2
+        //Sent by Distributor, accepted at Factory, to confirm distrbutor recieved the stock
+        //sensed by IR sensor
+        
+          //delay(3000);
+          showMessageOnLCD(lPayload.getMessageTextByIndex(13));// Container Arrived at D2
+          stopTruck();
+          //sendMessageToNode(distributorWest,ACTION_COMMAND,6); //Truck has halted, start unloading process
+          // Action happens at Distributor 1, until it sends a message that unloaded successfully.          
+        break;
+        
+        
+        
+        case 8: // Unloading at Distributor 1 Complete
+        //Sent by Distributor, accepted at Factory,        
+        delay(1000);  
+        sendMessageToNode(distributorEast,OLED_MESSAGE,1); //Notify the Distributors of Truck leaving factory      
+        //setTruckInMotion();// Happens till Distributor 2 confirms truck arrives
+        break;
+        
+       }
+        
+     
+        
+        
+      
+       
+     }  
 
 }
 
@@ -362,27 +460,8 @@ void setTruckInMotion()
   
 }
 
-void setupDisplay()
-{
-/*
-  display.begin(SSD1306_SWITCHCAPVCC);
-  display.clearDisplay();
-*/
-}
 
-void showMessageOnOLED(char* message)
-{
-  /*
-  Serial.println(message);
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-  display.println(message);
-  display.display();
-  */
- 
-}
+
 
 
 
@@ -423,7 +502,7 @@ boolean doAction(String location, String data)
 
 void setupMQTT()
 {
-   debugPort.println("Bringing up ESP!"); 
+  debugPort.println("Bringing up ESP!"); 
   esp.enable();
   delay(500);
   debugPort.println("Resetting up ESP!"); 
@@ -434,7 +513,7 @@ void setupMQTT()
    debugPort.println("ESP Not Ready!"); 
   } 
 
-  debugPort.println("ARDUINO: setup mqtt client");
+
   
   if(!mqtt.begin("Arduino","uname","pwd", 120, 1)) {
     debugPort.println("ARDUINO: fail to setup mqtt");
@@ -447,16 +526,18 @@ void setupMQTT()
 
 /*setup mqtt events */
   mqtt.connectedCb.attach(&mqttConnected);
-  mqtt.disconnectedCb.attach(&mqttDisconnected);
-  mqtt.publishedCb.attach(&mqttPublished);
+  //mqtt.disconnectedCb.attach(&mqttDisconnected);
+  //mqtt.publishedCb.attach(&mqttPublished);
   mqtt.dataCb.attach(&mqttData);
 
   /*setup wifi*/
   debugPort.println("ARDUINO: setup wifi");
   esp.wifiCb.attach(&wifiCb);
-  esp.wifiConnect("OpenWrt-Bridge","#3Twinkle3#");
+  esp.wifiConnect("Linksys","#3Twinkle");
   debugPort.println("ARDUINO: system started");
   
   //*********************************************************************************************************
    
 }
+
+
