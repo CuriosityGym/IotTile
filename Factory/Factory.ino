@@ -202,7 +202,7 @@ void setup()
   SPI.begin();
   radio.begin();
   network.begin(/*channel*/ 90, /*node address*/ this_node);
- //showMessageOnLCD("Factory UP");
+  showMessageOnLCD("Factory UP");
  delay(2000);
 }
 
@@ -214,6 +214,7 @@ void loop()
 {
   if(test)
   {
+    debugPort.println("Inside");
     showMessageOnLCD(getMessageTextByIndex(1));// Dispatching..
     delay(3000);
     sendMessageToNode(distributorWest,TRUCK_MOTION,1); 
@@ -257,67 +258,20 @@ void sendMessageToNode(int node, int command, int messageNumber)
 }
 
 
-
 void showMessageOnLCD(char * message)
 {
-   /*int index;  
-   int prevIndex=-1;
-   String sMessage=String (message);
-   index=sMessage.indexOf("|");
-  // Serial.println(index);
-   
-   int counter=0;
-   
-     while(index>0)
-     {
 
-       splitString[counter]= sMessage.substring(prevIndex+1,index);
-       prevIndex=index;
-       index=sMessage.indexOf("|", prevIndex+1);
-       counter=counter+1;
-       if(index==-1)
-       {
-         splitString[counter]=sMessage.substring(prevIndex+1,sMessage.length());
   
-       } 
-     } 
-     
-*/
- 
-  //  draw(); 
-  
-  u8g.firstPage();  
-    do {
-        u8g.drawStr(0, 24, message);
-       // u8g.drawStr(0, 40, splitString[1].c_str());
-        //u8g.drawStr(0, 56, splitString[2].c_str());
-        //u8g.drawStr(0, 72, splitString[3].c_str());
-        //delay(10000);
-    } while( u8g.nextPage() );
-  
-
-}  
-   
-   
-void draw()
-{
-  
-     u8g.firstPage();  
-    do {
-        u8g.drawStr(0, 24, splitString[0].c_str());
-        u8g.drawStr(0, 40, splitString[1].c_str());
-        u8g.drawStr(0, 56, splitString[2].c_str());
-        u8g.drawStr(0, 72, splitString[3].c_str());
-        //delay(10000);
-    } while( u8g.nextPage() );
+   u8g.setFont(u8g_font_unifont);
+   u8g.firstPage();  
+  do {    
+    u8g.drawStr(0, 28, message);
     
+  } while( u8g.nextPage() );
   
-    
-       
+  
+  
 }
-   
-
-
 
 
 
@@ -328,10 +282,10 @@ void draw()
 void processMessages(dataPayload lPayload, RF24NetworkHeader header)
 
 {
-     /*debugPort.print("Command: ");debugPort.println(lPayload.command, DEC);
+     debugPort.print("Command: ");debugPort.println(lPayload.command, DEC);
      debugPort.print("Message Number: ");debugPort.println(lPayload.messageNumber, DEC);
      debugPort.print("Message Text: ");debugPort.println(lPayload.getMessageTextByIndex(lPayload.messageNumber));
-     debugPort.print("From Node: ");debugPort.println(header.from_node);*/
+     debugPort.print("From Node: ");debugPort.println(header.from_node);
      if(header.from_node==distributorWest)
      {
        switch(lPayload.messageNumber)
@@ -400,10 +354,11 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
          case 2: //Confirmed Dispatch, response from Distributors when asked if factory can dispatch
           //Reciever :Factory
           //Case when Distributor confirms space available to stock
+          showMessageOnLCD(lPayload.getMessageTextByIndex(1));// Dispatching..
           delay(1000);
           showMessageOnLCD(lPayload.getMessageTextByIndex(3));// Dispatching..
           delay(3000);
-          sendMessageToNode(distributorEast,OLED_MESSAGE,3);         
+          sendMessageToNode(distributorEast,OLED_MESSAGE,4);         
 
           
           delay(2000);
@@ -435,7 +390,7 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
         case 8: // Unloading at Distributor 1 Complete
         //Sent by Distributor, accepted at Factory,        
         delay(1000);  
-        sendMessageToNode(distributorEast,OLED_MESSAGE,1); //Notify the Distributors of Truck leaving factory      
+        //sendMessageToNode(distributorEast,OLED_MESSAGE,1); //Notify the Distributors of Truck leaving factory      
         //setTruckInMotion();// Happens till Distributor 2 confirms truck arrives
         break;
         

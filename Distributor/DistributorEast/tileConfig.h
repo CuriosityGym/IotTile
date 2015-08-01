@@ -47,7 +47,7 @@ const char str42[] PROGMEM = "Replenished";
 
 
 
-PROGMEM const char* const tileMessages[]={str19,str20,str21,str22,str23,str24,str25,str26, str27, str28, str29};
+PROGMEM const char* const tileMessages[]={str0,str19,str20,str21,str22,str23,str24,str25,str26, str27, str28, str29};
 
 struct dataPayload
 {
