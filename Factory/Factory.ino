@@ -13,7 +13,7 @@
 
 
 
-SoftwareSerial debugPort(5, 6); // RX, TX
+SoftwareSerial debugPort(0, 1); // RX, TX
 ESP esp(&Serial, &debugPort, 4);
 MQTT mqtt(&esp);
 
@@ -22,16 +22,22 @@ int sizeOfEndpointArray=2;
 String splitString[4];
 int alertCounters[]={0,0};
 
-#define OLED_CLK   A0
-#define OLED_MOSI  A1
-#define OLED_RESET A2
-#define OLED_DC    A3
-#define OLED_CS    A4
+
+#define M1A        A5
+#define M1B        A6
+#define IRSensor   A7
+
+#define OLED_CLK   2
+#define OLED_MOSI  3
+#define OLED_RESET 4
+#define OLED_DC    5
+#define OLED_CS    6
+
 U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(OLED_CLK, OLED_MOSI, OLED_CS, OLED_DC, OLED_RESET);	// SW SPI Com: SCK = A0, MOSI = 11, CS = 10, A0 = 9
 
 boolean ESPEnable=false;
 boolean wifiConnected = false;
-boolean test=true;
+boolean test=false;
 // nRF24L01(+) radio attached using Getting Started board 
 RF24 radio(9,10);
 
@@ -182,10 +188,13 @@ void setup()
 {
   
 
-  
+    showMessageOnLCD(getMessageTextByIndex(13));
 //*******************  MQTT SETUP **********************************
   Serial.begin(19200);
   debugPort.begin(19200);
+  pinMode(M1A, OUTPUT);
+  pinMode(M1B, OUTPUT);
+  pinMode(IRSensor, OUTPUT);
   if(ESPEnable)
   {
     setupMQTT();
@@ -202,7 +211,9 @@ void setup()
   SPI.begin();
   radio.begin();
   network.begin(/*channel*/ 90, /*node address*/ this_node);
-  showMessageOnLCD("Factory UP");
+  //showMessageOnLCD(getMessageTextByIndex(0));
+    //showMessageOnLCD(getMessageTextByIndex(1));
+   
  delay(2000);
 }
 
@@ -261,11 +272,47 @@ void sendMessageToNode(int node, int command, int messageNumber)
 void showMessageOnLCD(char * message)
 {
 
+ 
+  //debugPort.println(message);
+  int messageIndex=0;  
+  char* command = strtok(message, "!");
+  //debugPort.println(command);
+  int startYIndex=20;
+  int fontGap=10;;
+  int yIndex=0;
+  
+  char * lmessages[4];
+
+
+  while (command != NULL)
+  {
+    
+    debugPort.println (command);
+    yIndex=startYIndex+messageIndex*fontGap;
+    //
+    lmessages[messageIndex]=command;
+    command = strtok (NULL, "!");
+    messageIndex=messageIndex+1;
+    //delay(5000);
+  }
+  
+  drawText(lmessages, messageIndex);
+
+  
+  
+  
+}
+
+void drawText(char *messages[], int index)
+{
   
    u8g.setFont(u8g_font_unifont);
    u8g.firstPage();  
-  do {    
-    u8g.drawStr(0, 28, message);
+  do {  
+    for(int i=0;i<index;i++)
+    {  
+      u8g.drawStr(0, (i+1)*14, messages[i]);
+    } 
     
   } while( u8g.nextPage() );
   
@@ -407,13 +454,26 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
 
 void stopTruck()
 {
-  
+  digitalWrite(M1A, LOW);
+  digitalWrite(M1A, LOW);
 }
 
 void setTruckInMotion()
 {
+  digitalWrite(M1A, HIGH);
+  digitalWrite(M1A, LOW);
+
   
 }
+
+void reverseTruck()
+{
+  digitalWrite(M1A, LOW);
+  digitalWrite(M1A, HIGH);
+
+  
+}
+
 
 
 
@@ -488,11 +548,15 @@ void setupMQTT()
   /*setup wifi*/
   debugPort.println("ARDUINO: setup wifi");
   esp.wifiCb.attach(&wifiCb);
-  esp.wifiConnect("Linksys","#3Twinkle");
+  esp.wifiConnect("CuriosityGym","#3Twinkle3#");
   debugPort.println("ARDUINO: system started");
   
   //*********************************************************************************************************
    
 }
 
-
+void moveMotorFront()
+{
+  
+  
+}

@@ -17,7 +17,7 @@ int factoryTheshold=100;
 
 
 
-const char str0[] PROGMEM = "Grains Low Alert";
+const char str0[] PROGMEM = "Grains!Low!Alert";
 
 //DW Notifications
 const char str1[] PROGMEM = "Dispatch?";
@@ -37,7 +37,7 @@ const char str19[] PROGMEM = "Dispatch?";
 const char str20[] PROGMEM = "Confirmed Dispatch";
 const char str21[] PROGMEM = "Dispatching..";
 const char str22[] PROGMEM = "Container Left Factory";
-const char str23[] PROGMEM = "Container Arrived at Distributor 2";
+const char str23[] PROGMEM = "Container!Arrived at!Distributor 2";
 const char str24[] PROGMEM = "Truck Arrived";
 
 const char str25[] PROGMEM = "Unloading";

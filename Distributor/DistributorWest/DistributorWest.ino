@@ -37,7 +37,7 @@ void setup()
   SPI.begin();
   radio.begin();
   network.begin(/*channel*/ 90, /*node address*/ this_node);
-  showMessageOnLCD("DW UP|AB");
+  showMessageOnLCD("DW UP");
   
 }
 
@@ -78,7 +78,7 @@ void sendMessageToNode(int node, int command, int messageNumber)
         network.write(header1,&payload,sizeof(payload));
   
 }
-/*
+
 void showMessageOnLCD(char * message)
 {
 
@@ -93,7 +93,7 @@ void showMessageOnLCD(char * message)
   
   
 }
-*/
+/*
 
 
 void showMessageOnLCD(char * message)
@@ -154,7 +154,7 @@ void draw()
 
   
      
-}
+}*/
 void displayMessages(dataPayload lPayload)
 
 {
