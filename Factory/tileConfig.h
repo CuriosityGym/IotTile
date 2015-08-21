@@ -23,11 +23,11 @@ const char str0[] PROGMEM = "Grains!Low!Alert";
 const char str1[] PROGMEM = "Dispatch?";
 const char str2[] PROGMEM = "Confirmed Dispatch  ";
 const char str3[] PROGMEM = "Dispatching..";
-const char str4[] PROGMEM = "Container Left Factory";
-const char str5[] PROGMEM = "Container Arrived at Distributor 1";
+const char str4[] PROGMEM = "Container Left!Factory";
+const char str5[] PROGMEM = "Container!Arrived at!Distributor 1";
 const char str6[] PROGMEM = "Truck Arrived  ";
 
-const char str7[] PROGMEM = "Unloadings";
+const char str7[] PROGMEM = "Unloading";
 const char str8[] PROGMEM = "Unloading Done"; //This is at D1, sent by D1 to Factory
 
 
@@ -38,7 +38,7 @@ const char str20[] PROGMEM = "Confirmed Dispatch";
 const char str21[] PROGMEM = "Dispatching..";
 const char str22[] PROGMEM = "Container Left Factory";
 const char str23[] PROGMEM = "Container!Arrived at!Distributor 2";
-const char str24[] PROGMEM = "Truck Arrived";
+const char str24[] PROGMEM = "Truck!Arrived";
 
 const char str25[] PROGMEM = "Unloading";
 const char str26[] PROGMEM = "Unloading Done"; //This is at 2, sent by D2 to Factory

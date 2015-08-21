@@ -12,9 +12,14 @@
 #define OLED_RESET A2
 #define OLED_DC    A3
 #define OLED_CS    A4
+
+#define M1A        A5
+#define M1B        A6
+#define IRSensor   5
+
 U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(OLED_CLK, OLED_MOSI, OLED_CS, OLED_DC, OLED_RESET);	// SW SPI Com: SCK = A0, MOSI = 11, CS = 10, A0 = 9
 
-String splitString[4];
+
 
 // nRF24L01(+) radio attached using Getting Started board 
 RF24 radio(9,10);
@@ -26,18 +31,23 @@ RF24Network network(radio);
 const uint16_t this_node = distributorWest;
 
 dataPayload payload;
-
+boolean truckArrivedOnce=false;
 
 void setup()
 {
   
   Serial.begin(19200);
   Serial.println("Distributor West Up");
+  u8g.setFont(u8g_font_courB10);  // select font
+  pinMode(M1A, OUTPUT);
+  pinMode(M1B, OUTPUT);
+  pinMode(IRSensor, INPUT);
  
   SPI.begin();
   radio.begin();
   network.begin(/*channel*/ 90, /*node address*/ this_node);
-  showMessageOnLCD("DW UP");
+  showMessageOnLCD("Distributor(W)!Up");
+ // Serial.println("Message Shown");
   
 }
 
@@ -65,6 +75,25 @@ void loop()
     
   }
   
+   if(isTruckDetected())
+  {
+      //Serial.println("SensorRead");
+      if(!truckArrivedOnce)
+      {
+        sendMessageToNode(factoryNode,OLED_MESSAGE,5);
+        showMessageOnLCD(getMessageTextByIndex(5));
+        truckArrivedOnce=true;
+        showMessageOnLCD(lPayload.getMessageTextByIndex(7));
+       delay(3000);
+       showMessageOnLCD(lPayload.getMessageTextByIndex(8));
+       delay(3000);
+       sendMessageToNode(factoryNode,OLED_MESSAGE,8); 
+       break;
+
+      } 
+   
+  }
+  
  
    
   
@@ -82,79 +111,55 @@ void sendMessageToNode(int node, int command, int messageNumber)
 void showMessageOnLCD(char * message)
 {
 
+ 
+  //Serial.println(message);
+  int messageIndex=0;  
+  char* command = strtok(message, "!");
+  //Serial.println(command);
+  int startYIndex=20;
+  int fontGap=10;;
+  int yIndex=0;
   
-   u8g.setFont(u8g_font_unifont);
+  char * lmessages[4];
+  
+
+  while (command != NULL)
+  {
+    
+
+    yIndex=startYIndex+messageIndex*fontGap;
+    //
+    lmessages[messageIndex]=command;
+    command = strtok (NULL, "!");
+    messageIndex=messageIndex+1;
+    //delay(5000);
+  }
+  
+  drawText(lmessages, messageIndex);
+
+  
+  
+  
+}
+
+void drawText(char *messages[], int index)
+{
+  
+
    u8g.firstPage();  
-  do {    
-    u8g.drawStr(0, 28, message);
+  do {  
+    for(int i=0;i<index;i++)
+    {  
+      u8g.drawStr(0, (i+1)*14, messages[i]);
+    } 
     
   } while( u8g.nextPage() );
   
   
   
 }
-/*
 
 
-void showMessageOnLCD(char * message)
-{
-   int index;  
-   int prevIndex=-1;
-   String sMessage=String (message);
-   index=sMessage.indexOf("|");
-  // Serial.println(index);
-   
-   int counter=0;
-   
-     while(index>0)
-     {
-       splitString[counter]= sMessage.substring(prevIndex+1,index);
-       //Serial.println(sMessage.substring(prevIndex+1,index));
-       //Serial.print("Value: ");
-       Serial.println(splitString[counter]);
-       prevIndex=index;
-       index=sMessage.indexOf("|", prevIndex+1);
-         // Serial.println(index);
-       counter=counter+1;
-       if(index==-1)
-       {
-         splitString[counter]=sMessage.substring(prevIndex+1,sMessage.length());
-  
-       } 
-     } 
-     
-
-  
-  
-    draw(); 
-  
-
-}  
-  
-   
-
-
-void draw()
-{
-
-   u8g.firstPage();  
-  do {
-   
-     
-      u8g.drawStr(0, 24, splitString[0].c_str());
-      u8g.drawStr(0, 40, splitString[1].c_str());
-      u8g.drawStr(0, 56, splitString[2].c_str());
-      u8g.drawStr(0, 72, splitString[3].c_str());
-  
- 
-      
-     
-  } while( u8g.nextPage() );
-  
-
-  
-     
-}*/
 void displayMessages(dataPayload lPayload)
 
 {
@@ -170,7 +175,7 @@ void displayMessages(dataPayload lPayload)
        showMessageOnLCD(lPayload.getMessageTextByIndex(2));
        break;
        
-       case 4:
+       /*case 4:
        delay(5000);
        sendMessageToNode(factoryNode,OLED_MESSAGE,5);
        showMessageOnLCD(lPayload.getMessageTextByIndex(5));
@@ -183,9 +188,24 @@ void displayMessages(dataPayload lPayload)
        sendMessageToNode(factoryNode,OLED_MESSAGE,8); 
        break;
        
+       */
+       
        
      }
      
+
+}
+
+boolean isTruckDetected()
+{
+   // Serial.println(digitalRead(IRSensor));
+    if(digitalRead(IRSensor)==LOW)
+    {
+      
+      return false;
+    }
+    
+    else return true;
 
 }
 

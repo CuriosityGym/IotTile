@@ -13,7 +13,7 @@
 
 
 
-SoftwareSerial debugPort(0, 1); // RX, TX
+SoftwareSerial debugPort(2,3); // RX, TX
 ESP esp(&Serial, &debugPort, 4);
 MQTT mqtt(&esp);
 
@@ -27,20 +27,20 @@ int alertCounters[]={0,0};
 #define M1B        A6
 #define IRSensor   A7
 
-#define OLED_CLK   2
-#define OLED_MOSI  3
-#define OLED_RESET 4
-#define OLED_DC    5
-#define OLED_CS    6
+#define OLED_CLK   A0
+#define OLED_MOSI  A1
+#define OLED_RESET A2
+#define OLED_DC    A3
+#define OLED_CS    A4
 
 U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(OLED_CLK, OLED_MOSI, OLED_CS, OLED_DC, OLED_RESET);	// SW SPI Com: SCK = A0, MOSI = 11, CS = 10, A0 = 9
 
 boolean ESPEnable=false;
 boolean wifiConnected = false;
-boolean test=false;
+boolean test=true;
 // nRF24L01(+) radio attached using Getting Started board 
-RF24 radio(9,10);
-
+RF24 radio(13,12);
+//RF24 radio(9,10);
 // Network uses that radio
 RF24Network network(radio);
 
@@ -187,14 +187,17 @@ void sendActionAlerts()
 void setup()
 {
   
+    u8g.setFont(u8g_font_courB10);  // select font
+    //showMessageOnLCD(getMessageTextByIndex(13));
+     
 
-    showMessageOnLCD(getMessageTextByIndex(13));
 //*******************  MQTT SETUP **********************************
   Serial.begin(19200);
   debugPort.begin(19200);
   pinMode(M1A, OUTPUT);
   pinMode(M1B, OUTPUT);
-  pinMode(IRSensor, OUTPUT);
+  pinMode(IRSensor, INPUT);
+
   if(ESPEnable)
   {
     setupMQTT();
@@ -203,7 +206,7 @@ void setup()
   
   
   //OLED
-  u8g.setFont(u8g_font_unifont);  // select font
+  
   
   //setupDisplay();
   
@@ -211,11 +214,12 @@ void setup()
   SPI.begin();
   radio.begin();
   network.begin(/*channel*/ 90, /*node address*/ this_node);
-  //showMessageOnLCD(getMessageTextByIndex(0));
-    //showMessageOnLCD(getMessageTextByIndex(1));
    
  delay(2000);
+ 
+
 }
+
 
 
 
@@ -226,8 +230,8 @@ void loop()
   if(test)
   {
     debugPort.println("Inside");
-    showMessageOnLCD(getMessageTextByIndex(1));// Dispatching..
-    delay(3000);
+    showMessageOnLCD("Factory!Up");// Dispatching..
+    //delay(3000);
     sendMessageToNode(distributorWest,TRUCK_MOTION,1); 
     test=false;
   } 
@@ -249,6 +253,11 @@ void loop()
   {
     esp.process();
   } 
+  if(isTruckDetected())
+  {
+    sendMessageToNode(factoryNode,OLED_MESSAGE,5);
+    showMessageOnLCD(lPayload.getMessageTextByIndex(5));
+  }
   
   
   
@@ -257,8 +266,25 @@ void loop()
 
   
   
-}
+}/*
 
+
+
+void loop()
+{
+   setTruckInMotion();        
+  delay(10000);
+ stopTruck();
+delay(1000); 
+
+reverseTruck();
+delay(10000);
+stopTruck();
+delay(1000); 
+
+showMessageOnLCD("A!BC!DEF");
+}
+*/
 
 void sendMessageToNode(int node, int command, int messageNumber)
 {
@@ -306,7 +332,7 @@ void showMessageOnLCD(char * message)
 void drawText(char *messages[], int index)
 {
   
-   u8g.setFont(u8g_font_unifont);
+
    u8g.firstPage();  
   do {  
     for(int i=0;i<index;i++)
@@ -350,9 +376,9 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
           delay(3000);
           showMessageOnLCD(lPayload.getMessageTextByIndex(3));// Dispatching..
           delay(2000);
-          setTruckInMotion();// Happens till Distributor 1 confirms truck arriveds
-          delay(2000);
-          showMessageOnLCD(lPayload.getMessageTextByIndex(4));// Truck Left Factory
+          setTruckInMotion();// Happens till Distributor 1 confirms truck arrived
+          //delay(2000);
+          showMessageOnLCD(lPayload.getMessageTextByIndex(4));// Container Left Factory
           sendMessageToNode(distributorWest,OLED_MESSAGE,4); //Notify the Distributors of Truck leaving factory
           
   
@@ -367,8 +393,9 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
         //sensed by IR sensor
         
           //delay(3000);
-          showMessageOnLCD(lPayload.getMessageTextByIndex(5));// Container Arrived at D1
           stopTruck();
+          showMessageOnLCD(lPayload.getMessageTextByIndex(5));// Container Arrived at D1
+          
           //sendMessageToNode(distributorWest,ACTION_COMMAND,6); //Truck has halted, start unloading process
           // Action happens at Distributor 1, until it sends a message that unloaded successfully.          
         break;
@@ -455,13 +482,13 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
 void stopTruck()
 {
   digitalWrite(M1A, LOW);
-  digitalWrite(M1A, LOW);
+  digitalWrite(M1B, LOW);
 }
 
 void setTruckInMotion()
 {
   digitalWrite(M1A, HIGH);
-  digitalWrite(M1A, LOW);
+  digitalWrite(M1B, LOW);
 
   
 }
@@ -469,7 +496,7 @@ void setTruckInMotion()
 void reverseTruck()
 {
   digitalWrite(M1A, LOW);
-  digitalWrite(M1A, HIGH);
+  digitalWrite(M1B, HIGH);
 
   
 }
@@ -555,8 +582,17 @@ void setupMQTT()
    
 }
 
-void moveMotorFront()
+
+
+boolean isTruckDetected()
 {
-  
-  
+    
+   return digitalRead(IRSensor);
 }
+
+
+
+
+
+
+
