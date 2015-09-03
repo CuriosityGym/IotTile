@@ -21,19 +21,16 @@ const char str0[] PROGMEM = "Grains Low Alert";
 
 //DE Notifications
 const char str19[] PROGMEM = "Dispatch?";
-const char str20[] PROGMEM = "Confirmed|Dispatch";
+const char str20[] PROGMEM = "Confirmed!Dispatch";
 const char str21[] PROGMEM = "Dispatching..";
-const char str22[] PROGMEM = "Container|Left|Factory";
-const char str23[] PROGMEM = "Container|Arrived at|Distributor 2";
-const char str24[] PROGMEM = "Truck|Arrived";
+const char str22[] PROGMEM = "Container!Left|Factory";
+const char str23[] PROGMEM = "Container!Arrived at!Distributor 2";
+const char str24[] PROGMEM = "Truck!Arrived";
 
-const char str25[] PROGMEM = "Unloading";
-const char str26[] PROGMEM = "Unloading|Done"; //This is at 2, sent by D2 to Factory
+const char str25[] PROGMEM = "Unloading....";
+const char str26[] PROGMEM = "Unloading!Done"; //This is at 2, sent by D2 to Factory
+const char str27[] PROGMEM = "Truck in!Transit"; //This is at D1, sent by D1 to Factory
 
-const char str27[] PROGMEM = "Container|Arrived at|Distributor 2";
-const char str28[] PROGMEM = "Unloading";
-
-const char str29[] PROGMEM = "Unloading|Done";
 
 //RW Notifications
 const char str30[] PROGMEM = "Enough stock??";
@@ -47,7 +44,7 @@ const char str42[] PROGMEM = "Replenished";
 
 
 
-PROGMEM const char* const tileMessages[]={str0,str19,str20,str21,str22,str23,str24,str25,str26, str27, str28, str29};
+PROGMEM const char* const tileMessages[]={str0,str19,str20, str21,str22,str23, str24,str25,str26, str27};
 
 struct dataPayload
 {

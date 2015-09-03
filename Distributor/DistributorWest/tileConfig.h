@@ -29,13 +29,14 @@ const char str6[] PROGMEM = "Truck Arrived";
 
 const char str7[] PROGMEM = "Unloading....";
 const char str8[] PROGMEM = "Unloading!Done"; //This is at D1, sent by D1 to Factory
+const char str9[] PROGMEM = "Truck in!Transit"; //This is at D1, sent by D1 to Factory
 
 
 
 
 
 
-PROGMEM const char* const tileMessages[]={str0,str1,str2,str3,str4,str5,str6,str7, str8, };
+PROGMEM const char* const tileMessages[]={str0,str1,str2,str3,str4,str5,str6,str7, str8,str9 };
 
 struct dataPayload
 {

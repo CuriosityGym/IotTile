@@ -12,6 +12,9 @@
 #define OLED_RESET A2
 #define OLED_DC    A3
 #define OLED_CS    A4
+#define M1A        A5
+#define M1B        A6
+#define IRSensor   5
 U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(OLED_CLK, OLED_MOSI, OLED_CS, OLED_DC, OLED_RESET);	// SW SPI Com: SCK = A0, MOSI = 11, CS = 10, A0 = 9
 
 
@@ -26,18 +29,18 @@ RF24Network network(radio);
 const uint16_t this_node = distributorEast;
 
 dataPayload payload;
-
-
+boolean truckArrivedOnce=false;
+boolean truckInTransit=false;
 void setup()
 {
   
   Serial.begin(19200);
   Serial.println("Distributor East Up");
- 
+  u8g.setFont(u8g_font_courB10);  // select font
   SPI.begin();
   radio.begin();
   network.begin(/*channel*/ 90, /*node address*/ this_node);
-  showMessageOnLCD("DE UP");
+   showMessageOnLCD("Distributor(E)!Up");
   
 }
 
@@ -65,6 +68,30 @@ void loop()
     
   }
   
+  
+   if(isTruckDetected() && truckInTransit)
+  {
+      //Serial.println("SensorRead");
+      if(!truckArrivedOnce)
+      {
+        showMessageOnLCD(getMessageTextByIndex(5));
+        delay(1000);
+        sendMessageToNode(factoryNode,OLED_MESSAGE,5);
+
+        truckArrivedOnce=true;
+         delay(3000);
+        showMessageOnLCD(getMessageTextByIndex(7));
+       delay(3000);
+       
+       sendMessageToNode(factoryNode,OLED_MESSAGE,8); 
+       showMessageOnLCD(getMessageTextByIndex(8));
+       delay(3000);
+       
+
+      } 
+   
+  }
+  
  
    
   
@@ -79,20 +106,59 @@ void sendMessageToNode(int node, int command, int messageNumber)
   
 }
 
+
 void showMessageOnLCD(char * message)
 {
 
+ 
+  //Serial.println(message);
+  int messageIndex=0;  
+  char* command = strtok(message, "!");
+  //Serial.println(command);
+  int startYIndex=20;
+  int fontGap=10;;
+  int yIndex=0;
   
-   u8g.setFont(u8g_font_unifont);
+  char * lmessages[4];
+  
+
+  while (command != NULL)
+  {
+    
+
+    yIndex=startYIndex+messageIndex*fontGap;
+    //
+    lmessages[messageIndex]=command;
+    command = strtok (NULL, "!");
+    messageIndex=messageIndex+1;
+    //delay(5000);
+  }
+  
+  drawText(lmessages, messageIndex);
+
+  
+  
+  
+}
+
+void drawText(char *messages[], int index)
+{
+  
+
    u8g.firstPage();  
-  do {    
-    u8g.drawStr(0, 28, message);
+  do {  
+    for(int i=0;i<index;i++)
+    {  
+      u8g.drawStr(0, (i+1)*14, messages[i]);
+    } 
     
   } while( u8g.nextPage() );
   
   
   
 }
+
+
 
 void displayMessages(dataPayload lPayload, RF24NetworkHeader header)
 
@@ -111,16 +177,10 @@ void displayMessages(dataPayload lPayload, RF24NetworkHeader header)
        break;
        
        case 4:
-       delay(3000); 
-       showMessageOnLCD(lPayload.getMessageTextByIndex(5));// Dispatching..
+       truckInTransit=true;
        delay(3000);       
-       sendMessageToNode(factoryNode,OLED_MESSAGE,5);
-
-       delay(3000);
-       showMessageOnLCD(lPayload.getMessageTextByIndex(7));// Dispatching..
-       delay(3000);
-       sendMessageToNode(factoryNode,OLED_MESSAGE,8); 
-        showMessageOnLCD(lPayload.getMessageTextByIndex(8));// Dispatching..       
+       showMessageOnLCD(lPayload.getMessageTextByIndex(9));
+       
        break;
        
        
@@ -129,4 +189,17 @@ void displayMessages(dataPayload lPayload, RF24NetworkHeader header)
 
 }
 
+
+boolean isTruckDetected()
+{
+   // Serial.println(digitalRead(IRSensor));
+    if(digitalRead(IRSensor)==LOW)
+    {
+      
+      return false;
+    }
+    
+    else return true;
+
+}
 

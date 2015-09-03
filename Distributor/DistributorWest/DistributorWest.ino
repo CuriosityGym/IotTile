@@ -32,7 +32,7 @@ const uint16_t this_node = distributorWest;
 
 dataPayload payload;
 boolean truckArrivedOnce=false;
-
+boolean truckInTransit=false;
 void setup()
 {
   
@@ -75,20 +75,24 @@ void loop()
     
   }
   
-   if(isTruckDetected())
+   if(isTruckDetected() && truckInTransit)
   {
       //Serial.println("SensorRead");
       if(!truckArrivedOnce)
       {
-        sendMessageToNode(factoryNode,OLED_MESSAGE,5);
         showMessageOnLCD(getMessageTextByIndex(5));
+        delay(1000);
+        sendMessageToNode(factoryNode,OLED_MESSAGE,5);
+
         truckArrivedOnce=true;
-        showMessageOnLCD(lPayload.getMessageTextByIndex(7));
+         delay(3000);
+        showMessageOnLCD(getMessageTextByIndex(7));
        delay(3000);
-       showMessageOnLCD(lPayload.getMessageTextByIndex(8));
-       delay(3000);
+       
        sendMessageToNode(factoryNode,OLED_MESSAGE,8); 
-       break;
+       showMessageOnLCD(getMessageTextByIndex(8));
+       delay(3000);
+       
 
       } 
    
@@ -175,20 +179,10 @@ void displayMessages(dataPayload lPayload)
        showMessageOnLCD(lPayload.getMessageTextByIndex(2));
        break;
        
-       /*case 4:
-       delay(5000);
-       sendMessageToNode(factoryNode,OLED_MESSAGE,5);
-       showMessageOnLCD(lPayload.getMessageTextByIndex(5));
-       delay(3000);
-
-       showMessageOnLCD(lPayload.getMessageTextByIndex(7));
-       delay(3000);
-       showMessageOnLCD(lPayload.getMessageTextByIndex(8));
-       delay(3000);
-       sendMessageToNode(factoryNode,OLED_MESSAGE,8); 
-       break;
-       
-       */
+       case 4:
+       truckInTransit=true;
+       delay(1000);
+       showMessageOnLCD(lPayload.getMessageTextByIndex(9));//truck in transit       
        
        
      }

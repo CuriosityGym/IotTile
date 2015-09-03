@@ -13,8 +13,8 @@
 
 
 
-SoftwareSerial debugPort(2,3); // RX, TX
-ESP esp(&Serial, &debugPort, 4);
+SoftwareSerial debugPort(3,4); // RX, TX
+ESP esp(&Serial, &debugPort, 5);
 MQTT mqtt(&esp);
 
 char* endpoints[]={"/CG/West/Alert", "/CG/East/Alert"};
@@ -22,31 +22,30 @@ int sizeOfEndpointArray=2;
 String splitString[4];
 int alertCounters[]={0,0};
 
-
-#define M1A        A5
-#define M1B        A6
-#define IRSensor   A7
-
 #define OLED_CLK   A0
 #define OLED_MOSI  A1
 #define OLED_RESET A2
 #define OLED_DC    A3
 #define OLED_CS    A4
 
+#define M1A        A5
+#define M1B        A6
+#define IRSensor   6
 U8GLIB_SSD1306_ADAFRUIT_128X64 u8g(OLED_CLK, OLED_MOSI, OLED_CS, OLED_DC, OLED_RESET);	// SW SPI Com: SCK = A0, MOSI = 11, CS = 10, A0 = 9
 
 boolean ESPEnable=false;
 boolean wifiConnected = false;
 boolean test=true;
-// nRF24L01(+) radio attached using Getting Started board 
-RF24 radio(13,12);
-//RF24 radio(9,10);
+
+//RF24 radio(13,12);
+
+RF24 radio(9,10);
+
 // Network uses that radio
 RF24Network network(radio);
 
 // Address of our node
 const uint16_t this_node = factoryNode;
-
 
 dataPayload payload;
 
@@ -127,7 +126,10 @@ void sendActionAlerts()
         if(alertCounters[i]> factoryTheshold)
         {
             sendMessageToNode(factoryNode,TRUCK_MOTION,1); 
-                     
+                     // nRF24L01(+) radio attached using Getting Started board 
+
+
+
         
         } 
         
@@ -188,7 +190,7 @@ void setup()
 {
   
     u8g.setFont(u8g_font_courB10);  // select font
-    //showMessageOnLCD(getMessageTextByIndex(13));
+    
      
 
 //*******************  MQTT SETUP **********************************
@@ -205,17 +207,18 @@ void setup()
   
   
   
-  //OLED
-  
-  
-  //setupDisplay();
   
   //NRF Objects
   SPI.begin();
   radio.begin();
   network.begin(/*channel*/ 90, /*node address*/ this_node);
    
+ 
+ //showMessageOnLCD("Test!Up");
  delay(2000);
+ debugPort.println("Setup done");
+ showMessageOnLCD("Factory!Up");
+ delay(3000);
  
 
 }
@@ -227,14 +230,19 @@ void setup()
 
 void loop()
 {
+  //debugPort.println();
   if(test)
   {
-    debugPort.println("Inside");
-    showMessageOnLCD("Factory!Up");// Dispatching..
+    //debugPort.println("Inside");
+   
     //delay(3000);
+    
     sendMessageToNode(distributorWest,TRUCK_MOTION,1); 
+    debugPort.println("Setup done 1");
     test=false;
+   
   } 
+ 
     
 
    
@@ -255,8 +263,8 @@ void loop()
   } 
   if(isTruckDetected())
   {
-    sendMessageToNode(factoryNode,OLED_MESSAGE,5);
-    showMessageOnLCD(lPayload.getMessageTextByIndex(5));
+    //debugPort.println("Truck Detected");
+    //showMessageOnLCD("A!BC!DEF");
   }
   
   
@@ -266,26 +274,7 @@ void loop()
 
   
   
-}/*
-
-
-
-void loop()
-{
-   setTruckInMotion();        
-  delay(10000);
- stopTruck();
-delay(1000); 
-
-reverseTruck();
-delay(10000);
-stopTruck();
-delay(1000); 
-
-showMessageOnLCD("A!BC!DEF");
 }
-*/
-
 void sendMessageToNode(int node, int command, int messageNumber)
 {
         payload = { command, messageNumber }; 
@@ -303,22 +292,21 @@ void showMessageOnLCD(char * message)
   int messageIndex=0;  
   char* command = strtok(message, "!");
   //debugPort.println(command);
-  int startYIndex=20;
-  int fontGap=10;;
-  int yIndex=0;
+  
   
   char * lmessages[4];
-
+  
 
   while (command != NULL)
   {
     
-    debugPort.println (command);
-    yIndex=startYIndex+messageIndex*fontGap;
+
+   // yIndex=startYIndex+messageIndex*fontGap;
     //
     lmessages[messageIndex]=command;
     command = strtok (NULL, "!");
     messageIndex=messageIndex+1;
+    //debugPort.println(command);
     //delay(5000);
   }
   
@@ -345,7 +333,6 @@ void drawText(char *messages[], int index)
   
   
 }
-
 
 
 
@@ -403,10 +390,11 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
         
         
         case 8: // Unloading at Distributor 1 Complete
-        //Sent by Distributor 1, accepted at Factory,        
-        delay(3000);  
+        //Sent by Distributor 1, accepted at Factory,   
+        showMessageOnLCD(lPayload.getMessageTextByIndex(16));// Unloading at D1 done
+        delay(3000);         
         sendMessageToNode(distributorEast,OLED_MESSAGE,1); //Notify the Distributors of Truck leaving factory      
-        //setTruckInMotion();// Happens till Distributor 2 confirms truck arrives
+        //        showMessageOnLCD(getMessageTextByIndex(5));setTruckInMotion();// Happens till Distributor 2 confirms truck arrives
         break;
         
        }
@@ -425,20 +413,13 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
        switch(lPayload.messageNumber)
        {
      
-         case 2: //Confirmed Dispatch, response from Distributors when asked if factory can dispatch
-          //Reciever :Factory
-          //Case when Distributor confirms space available to stock
-          showMessageOnLCD(lPayload.getMessageTextByIndex(1));// Dispatching..
-          delay(1000);
-          showMessageOnLCD(lPayload.getMessageTextByIndex(3));// Dispatching..
-          delay(3000);
-          sendMessageToNode(distributorEast,OLED_MESSAGE,4);         
-
-          
-          delay(2000);
-          setTruckInMotion();// Happens till Distributor 2 confirms truck arriveds
+         case 2: 
+          showMessageOnLCD(lPayload.getMessageTextByIndex(3));// Dispatching..         
           delay(2000);
           showMessageOnLCD(lPayload.getMessageTextByIndex(4));// Truck Left Factory
+          delay(2000);
+          setTruckInMotion();// Happens till Distributor 2 confirms truck arriveds         
+          
           delay(3000);
           sendMessageToNode(distributorEast,OLED_MESSAGE,4); //Notify the Distributors of Truck leaving factory
           
@@ -463,9 +444,8 @@ void processMessages(dataPayload lPayload, RF24NetworkHeader header)
         
         case 8: // Unloading at Distributor 1 Complete
         //Sent by Distributor, accepted at Factory,        
-        delay(1000);  
-        //sendMessageToNode(distributorEast,OLED_MESSAGE,1); //Notify the Distributors of Truck leaving factory      
-        //setTruckInMotion();// Happens till Distributor 2 confirms truck arrives
+         showMessageOnLCD(lPayload.getMessageTextByIndex(16));// Unloading at D1 done
+        delay(3000);         
         break;
         
        }
@@ -564,7 +544,7 @@ void setupMQTT()
 
 
   debugPort.println("ARDUINO: setup mqtt lwt");
-  mqtt.lwt("/lwt", "offline", 0, 0); //or mqtt.lwt("/lwt", "offline");
+  //mqtt.lwt("/lwt", "offline", 0, 0); //or mqtt.lwt("/lwt", "offline");
 
 /*setup mqtt events */
   mqtt.connectedCb.attach(&mqttConnected);
